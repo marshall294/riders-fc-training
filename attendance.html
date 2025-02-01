@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Riders FC Attendance</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+        select, button { padding: 10px; margin: 10px; }
+        table { width: 100%; margin-top: 20px; border-collapse: collapse; }
+        th, td { border: 1px solid black; padding: 8px; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <h2>Riders FC Player Attendance</h2>
+
+    <label for="player">Select Player:</label>
+    <select id="player"></select>
+
+    <label for="status">Select Status:</label>
+    <select id="status">
+        <option value="Present">Present</option>
+        <option value="Absent">Absent</option>
+        <option value="Sick">Sick</option>
+        <option value="Permitted">Permitted</option>
+    </select>
+
+    <button onclick="submitAttendance()">Submit Attendance</button>
+
+    <p id="message"></p>
+
+    <hr>
+    <h2>Admin Panel - View & Edit Attendance</h2>
+    
+    <label for="date">Select Date:</label>
+    <input type="date" id="date" onchange="loadAttendance()">
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Player</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="attendanceTable"></tbody>
+    </table>
+
+    <script>
+        // ✅ Firebase Configuration (Your provided config)
+        const firebaseConfig = {
+            apiKey: "AIzaSyATPcqBcNmcQkIz6DVpRQ7Aq98yHJt7dDY",
+            authDomain: "live-score-57927.firebaseapp.com",
+            databaseURL: "https://live-score-57927-default-rtdb.firebaseio.com",
+            projectId: "live-score-57927",
+            storageBucket: "live-score-57927.firebasestorage.app",
+            messagingSenderId: "127539049395",
+            appId: "1:127539049395:web:69ae352cfcd8a42cc651c6",
+            measurementId: "G-7NBDLPCX20"
+        };
+
+        // ✅ Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // ✅ List of players
+        const players = [
+            "Ayoola (Century)",
+            "JAMILU (ANSAR)",
+            "ANTHONY (Griezmann)",
+            "Abdulazeez (Alhaji coded)",
+            "Lawal (Auwal)",
+            "Bilal (Bilaldeen)",
+            "Abdullateef (BORLLAJY)",
+            "Ibrahim (Wabissaka)",
+            "SALAHUDEEN (NOTORIOUS)",
+            "Idowu (Nathaniel)",
+            "Abdulkadir (Junior)",
+            "EMMANUEL (MARTIAL)"
+        ];
+
+        // ✅ Populate player dropdown
+        function loadPlayers() {
+            const playerDropdown = document.getElementById("player");
+            playerDropdown.innerHTML = "";
+            players.forEach(name => {
+                let option = document.createElement("option");
+                option.value = name;
+                option.textContent = name;
+                playerDropdown.appendChild(option);
+            });
+        }
+
+        // ✅ Get current date (YYYY-MM-DD)
+        function getCurrentDate() {
+            return new Date().toISOString().split('T')[0]; 
+        }
+
+        // ✅ Submit attendance
+        function submitAttendance() {
+            const player = document.getElementById("player").value;
+            const status = document.getElementById("status").value;
+            const today = getCurrentDate();
+
+            if (!confirm(`Confirm attendance for ${player} as ${status}?`)) return;
+
+            const attendanceRef = database.ref(`attendance/${today}/${player}`);
+            attendanceRef.once("value", (snapshot) => {
+                if (snapshot.exists()) {
+                    document.getElementById("message").textContent = "Attendance already marked!";
+                } else {
+                    attendanceRef.set({ status }).then(() => {
+                        document.getElementById("message").textContent = "Attendance marked successfully!";
+                        loadAttendance(); // Refresh table
+                    }).catch((error) => {
+                        document.getElementById("message").textContent = "Error: " + error.message;
+                    });
+                }
+            });
+        }
+
+        // ✅ Load attendance records
+        function loadAttendance() {
+            const selectedDate = document.getElementById("date").value || getCurrentDate();
+            const attendanceTable = document.getElementById("attendanceTable");
+            attendanceTable.innerHTML = "";
+
+            database.ref(`attendance/${selectedDate}`).once("value", (snapshot) => {
+                if (snapshot.exists()) {
+                    snapshot.forEach((child) => {
+                        let row = document.createElement("tr");
+                        row.innerHTML = `
+                            <td>${child.key}</td>
+                            <td>
+                                <select id="status-${child.key}">
+                                    <option value="Present" ${child.val().status === "Present" ? "selected" : ""}>Present</option>
+                                    <option value="Absent" ${child.val().status === "Absent" ? "selected" : ""}>Absent</option>
+                                    <option value="Sick" ${child.val().status === "Sick" ? "selected" : ""}>Sick</option>
+                                    <option value="Permitted" ${child.val().status === "Permitted" ? "selected" : ""}>Permitted</option>
+                                </select>
+                            </td>
+                            <td><button onclick="updateAttendance('${selectedDate}', '${child.key}')">Update</button></td>
+                        `;
+                        attendanceTable.appendChild(row);
+                    });
+                } else {
+                    attendanceTable.innerHTML = "<tr><td colspan='3'>No attendance records found.</td></tr>";
+                }
+            });
+        }
+
+        // ✅ Update attendance (Only for today)
+        function updateAttendance(date, player) {
+            if (date !== getCurrentDate()) {
+                alert("Editing past attendance is not allowed!");
+                return;
+            }
+
+            const newStatus = document.getElementById(`status-${player}`).value;
+            database.ref(`attendance/${date}/${player}`).set({ status: newStatus }).then(() => {
+                alert("Attendance updated successfully!");
+            }).catch((error) => {
+                alert("Error: " + error.message);
+            });
+        }
+
+        // ✅ Load default values on page load
+        window.onload = function() {
+            loadPlayers();
+            document.getElementById("date").value = getCurrentDate();
+            loadAttendance();
+        };
+    </script>
+
+</body>
+</html>
