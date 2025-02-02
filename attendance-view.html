@@ -8,49 +8,32 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
-        select, button { padding: 10px; margin: 10px; }
-        table { width: 100%; margin-top: 20px; border-collapse: collapse; }
-        th, td { border: 1px solid black; padding: 8px; text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid black; padding: 10px; text-align: center; }
+        th { background-color: #f4f4f4; }
+        .status-count { font-weight: bold; color: blue; }
     </style>
 </head>
 <body>
 
-    <h2>Riders FC Player Attendance</h2>
+    <h2>Riders FC Attendance</h2>
 
-    <label for="player">Select Player:</label>
-    <select id="player"></select>
-
-    <label for="status">Select Status:</label>
-    <select id="status">
-        <option value="Present">Present</option>
-        <option value="Absent">Absent</option>
-        <option value="Sick">Sick</option>
-        <option value="Permitted">Permitted</option>
-    </select>
-
-    <button onclick="submitAttendance()">Submit Attendance</button>
-
-    <p id="message"></p>
-
-    <hr>
-    <h2>Admin Panel - View & Edit Attendance</h2>
-
-    <label for="date">Select Date:</label>
-    <input type="date" id="date" onchange="loadAttendance()">
-
+    <h3>Player Attendance (All Days)</h3>
     <table>
         <thead>
             <tr>
                 <th>Player</th>
-                <th>Status</th>
-                <th>Action</th>
+                <th>Present</th>
+                <th>Absent</th>
+                <th>Sick</th>
+                <th>Permitted</th>
+                <th>Attendance %</th>
             </tr>
         </thead>
         <tbody id="attendanceTable"></tbody>
     </table>
 
     <script>
-        // ✅ Firebase Configuration (Your provided config)
         const firebaseConfig = {
             apiKey: "AIzaSyATPcqBcNmcQkIz6DVpRQ7Aq98yHJt7dDY",
             authDomain: "live-score-57927.firebaseapp.com",
@@ -62,117 +45,70 @@
             measurementId: "G-7NBDLPCX20"
         };
 
-        // ✅ Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        // ✅ List of players
         const players = [
-            "Ayoola (Century)",
-            "JAMILU (ANSAR)",
-            "ANTHONY (Griezmann)",
-            "Abdulazeez (Alhaji coded)",
-            "Lawal (Auwal)",
-            "Bilal (Bilaldeen)",
-            "Abdullateef (BORLLAJY)",
-            "Ibrahim (Wabissaka)",
-            "SALAHUDEEN (NOTORIOUS)",
-            "Idowu (Nathaniel)",
-            "Abdulkadir (Junior)",
-            "EMMANUEL (MARTIAL)"
+            "Ayoola Ifeoluwa Odunalo (Century)", "Balogun Samuel (Sambalo)", "JAMILU SULEIMAN SABO (ANSAR)",
+            "Taiwo (Danilo)", "Mohammed Al-Amin Shina (Atlaszz)", "ANTHONY JOSEPH (Griezmann)",
+            "Emmanuel Kelechukwu (OMOIGBO)", "Abdulazeez Babatunde Azeez (Alhaji coded)", "Godwin Lucky (Grealish)",
+            "Muhammad Masud Jibril (Masud)", "Olasupo Abdulrasheed (Gabriel Jesus)", "Lawal Muhammad Omoniyi (Auwal)",
+            "Abdulkarim Abdullahi (Gomna)", "Abdullahi Adamu Zarewa (Zarewa)", "Bilal Yahaya (Bilaldeen)",
+            "Abdullateef Abdulkareem (BORLLAJY)", "Ibrahim Gimba (Wabissaka)", "Adekola Kingsley (Obiliwizzy)",
+            "SALAHUDEEN FOLORUNSHO FUAD (NOTORIOUS)", "Suleiman Suleiman (De General)", "Idowu (Nathaniel)",
+            "Abel Joshua (Witty)"
         ];
 
-        // ✅ Populate player dropdown
-        function loadPlayers() {
-            const playerDropdown = document.getElementById("player");
-            playerDropdown.innerHTML = "";
-            players.forEach(name => {
-                let option = document.createElement("option");
-                option.value = name;
-                option.textContent = name;
-                playerDropdown.appendChild(option);
-            });
-        }
-
-        // ✅ Get current date (YYYY-MM-DD)
-        function getCurrentDate() {
-            return new Date().toISOString().split('T')[0]; 
-        }
-
-        // ✅ Submit attendance
-        function submitAttendance() {
-            const player = document.getElementById("player").value;
-            const status = document.getElementById("status").value;
-            const today = getCurrentDate();
-
-            if (!confirm(`Confirm attendance for ${player} as ${status}?`)) return;
-
-            const attendanceRef = database.ref(`attendance/${today}/${player}`);
-            attendanceRef.once("value", (snapshot) => {
-                if (snapshot.exists()) {
-                    document.getElementById("message").textContent = "Attendance already marked!";
-                } else {
-                    attendanceRef.set({ status }).then(() => {
-                        document.getElementById("message").textContent = "Attendance marked successfully!";
-                        loadAttendance(); // Refresh table
-                    }).catch((error) => {
-                        document.getElementById("message").textContent = "Error: " + error.message;
-                    });
-                }
-            });
-        }
-
-        // ✅ Load attendance records
         function loadAttendance() {
-            const selectedDate = document.getElementById("date").value || getCurrentDate();
             const attendanceTable = document.getElementById("attendanceTable");
+
             attendanceTable.innerHTML = "";
 
-            database.ref(`attendance/${selectedDate}`).once("value", (snapshot) => {
-                if (snapshot.exists()) {
-                    snapshot.forEach((child) => {
-                        let row = document.createElement("tr");
-                        row.innerHTML = `
-                            <td>${child.key}</td>
-                            <td>
-                                <select id="status-${child.key}">
-                                    <option value="Present" ${child.val().status === "Present" ? "selected" : ""}>Present</option>
-                                    <option value="Absent" ${child.val().status === "Absent" ? "selected" : ""}>Absent</option>
-                                    <option value="Sick" ${child.val().status === "Sick" ? "selected" : ""}>Sick</option>
-                                    <option value="Permitted" ${child.val().status === "Permitted" ? "selected" : ""}>Permitted</option>
-                                </select>
-                            </td>
-                            <td><button onclick="updateAttendance('${selectedDate}', '${child.key}')">Update</button></td>
-                        `;
-                        attendanceTable.appendChild(row);
+            // Fetch all attendance data
+            database.ref('attendance').once("value", (snapshot) => {
+                const allAttendanceData = snapshot.val() || {};
+
+                let playerStats = {};
+
+                // Initialize all players with default values
+                players.forEach(player => {
+                    playerStats[player] = { Present: 0, Absent: 0, Sick: 0, Permitted: 0, Total: 0 };
+                });
+
+                // Loop through all recorded attendance days
+                Object.keys(allAttendanceData).forEach(day => {
+                    const dailyData = allAttendanceData[day];
+
+                    Object.keys(dailyData).forEach(player => {
+                        let status = dailyData[player].status;
+
+                        if (playerStats[player]) {
+                            playerStats[player][status] = (playerStats[player][status] || 0) + 1;
+                            playerStats[player]["Total"]++;
+                        }
                     });
-                } else {
-                    attendanceTable.innerHTML = "<tr><td colspan='3'>No attendance records found.</td></tr>";
-                }
+                });
+
+                // Populate table
+                players.forEach(player => {
+                    const stats = playerStats[player];
+                    let attendancePercentage = stats.Total > 0 ? ((stats.Present / stats.Total) * 100).toFixed(1) + "%" : "0%";
+
+                    let row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td>${player}</td>
+                        <td>${stats.Present}</td>
+                        <td>${stats.Absent}</td>
+                        <td>${stats.Sick}</td>
+                        <td>${stats.Permitted}</td>
+                        <td>${attendancePercentage}</td>
+                    `;
+                    attendanceTable.appendChild(row);
+                });
             });
         }
 
-        // ✅ Update attendance (Only for today)
-        function updateAttendance(date, player) {
-            if (date !== getCurrentDate()) {
-                alert("Editing past attendance is not allowed!");
-                return;
-            }
-
-            const newStatus = document.getElementById(`status-${player}`).value;
-            database.ref(`attendance/${date}/${player}`).set({ status: newStatus }).then(() => {
-                alert("Attendance updated successfully!");
-            }).catch((error) => {
-                alert("Error: " + error.message);
-            });
-        }
-
-        // ✅ Load default values on page load
-        window.onload = function() {
-            loadPlayers();
-            document.getElementById("date").value = getCurrentDate();
-            loadAttendance();
-        };
+        loadAttendance();
     </script>
 
 </body>
